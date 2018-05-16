@@ -16,13 +16,13 @@ def clean_text(text):
 # 크롤링 함수
 def crowling(writer):
     # Headless모드
-    # options = webdriver.ChromeOptions()
-    # options.add_argument('headless')
-    # options.add_argument('window-size=1920x1080')
-    # options.add_argument("disable-gpu")
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless')
+    options.add_argument('window-size=1920x1080')
+    options.add_argument("disable-gpu")
 
     # chromedriver 경로 설정
-    driver = webdriver.Chrome('/usr/local/bin/chromedriver')
+    driver = webdriver.Chrome('/usr/local/bin/chromedriver', options=options)
     driver.implicitly_wait(3)
 
     section = {"정치" : 100, "경제":101, "사회":102,"생활/문화":103,"세계":104,"IT/과학":105}
