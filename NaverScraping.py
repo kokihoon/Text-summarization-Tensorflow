@@ -5,6 +5,7 @@ import time
 import re
 import os
 
+
 # 클리닝 함수
 def clean_text(text):
     cleaned_text = re.sub('[a-zA-Z]', '', text)
@@ -14,8 +15,11 @@ def clean_text(text):
 
 # 크롤링 함수
 def crowling(writer):
-    #f = open('./data/navernews_data.csv', 'a', encoding='utf-8', newline='')
-    #wr = csv.writer(f)
+    # Headless모드
+    # options = webdriver.ChromeOptions()
+    # options.add_argument('headless')
+    # options.add_argument('window-size=1920x1080')
+    # options.add_argument("disable-gpu")
 
     # chromedriver 경로 설정
     driver = webdriver.Chrome('/usr/local/bin/chromedriver')
@@ -29,29 +33,42 @@ def crowling(writer):
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
         notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
+        for i in range(100):
+            for i in range(30):
+                try :
+                    driver.find_element_by_link_text(notices[i].text).click()
+                    time.sleep(2)
+                    html = driver.page_source
+                    soup = BeautifulSoup(html, 'html.parser')
+                    time.sleep(2)
+                    title = soup.select_one('#articleTitle').text
+                    content = soup.select_one("#articleBodyContents")
+                    output = ""
+                    for text in content.contents:
+                        stripped = str(text).strip()
+                        if stripped == "":
+                            continue
+                        if stripped[0] not in ["<", "/"]:
+                            output += str(text).strip()
+                    output.replace("&apos;", '')
+                    content = output.replace("본문 내용TV플레이어", '')
+                    title = clean_text(title)
+                    content = clean_text(content)
+                    writer.writerow({"title":title,"content":content})
+                    driver.back()
+                    time.sleep(2)
+                except:
+                    print("error 발생")
 
-        for i in range(1):
-            driver.find_element_by_link_text(notices[i].text).click()
+            html = driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            test = soup.select('div.pagenavi_day > a')[2].text
+            print(test)
+            driver.find_element_by_link_text(test).click()
             time.sleep(2)
             html = driver.page_source
             soup = BeautifulSoup(html, 'html.parser')
-            time.sleep(2)
-            title = soup.select_one('#articleTitle').text
-            content = soup.select_one("#articleBodyContents")
-            output = ""
-            for text in content.contents:
-                stripped = str(text).strip()
-                if stripped == "":
-                    continue
-                if stripped[0] not in ["<", "/"]:
-                    output += str(text).strip()
-            output.replace("&apos;", '')
-            content = output.replace("본문 내용TV플레이어", '')
-            title = clean_text(title)
-            content = clean_text(content)
-            writer.writerow({"title":title,"content":content})
-            driver.back()
-            time.sleep(2)
+            notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
 
 #파일 쓰기
 def csv_writer():
