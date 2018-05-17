@@ -24,7 +24,7 @@ def crawling(writer):
     options.add_argument("disable-gpu")
 
     # chromedriver 경로 설정
-    driver = webdriver.Chrome(driver_path)
+    driver = webdriver.Chrome(driver_path, options=options)
     driver.implicitly_wait(3)
 
     section = {"정치": 100, "경제": 101, "사회": 102, "생활/문화": 103, "세계": 104, "IT/과학": 105}
