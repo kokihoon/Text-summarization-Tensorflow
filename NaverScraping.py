@@ -10,7 +10,7 @@ driver_path = 'D://Download//chromedriver_win32//chromedriver'
 # 클리닝 함수
 def clean_text(text):
     cleaned_text = re.sub('[a-zA-Z]', '', text)
-    cleaned_text = re.sub('[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#,$%&\\\=\(\'\"]',
+    cleaned_text = re.sub('[\{\}\[\]\/?,;:|\)*~`!^\-_+<>@\#,$%&\\\=\(\'\"]',
                           '', cleaned_text)
     return cleaned_text
 
@@ -24,7 +24,7 @@ def crawling(writer):
     options.add_argument("disable-gpu")
 
     # chromedriver 경로 설정
-    driver = webdriver.Chrome(driver_path, options=options)
+    driver = webdriver.Chrome(driver_path)
     driver.implicitly_wait(3)
 
     section = {"정치": 100, "경제": 101, "사회": 102, "생활/문화": 103, "세계": 104, "IT/과학": 105}
@@ -35,8 +35,8 @@ def crawling(writer):
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
         notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
-        for _ in range(100):
-            for _ in range(30):
+        for i in range(100):
+            for i in range(30):
                 try:
                     driver.find_element_by_link_text(notices[i].text).click()
                     time.sleep(2)
