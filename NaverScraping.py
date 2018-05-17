@@ -5,6 +5,7 @@ import time
 import re
 import os
 
+driver_path = 'D://Download//chromedriver_win32//chromedriver'
 
 # 클리닝 함수
 def clean_text(text):
@@ -13,19 +14,20 @@ def clean_text(text):
                           '', cleaned_text)
     return cleaned_text
 
+
 # 크롤링 함수
-def crowling(writer):
-    # Headless모드
+def crawling(writer):
+    # Headless 모드
     options = webdriver.ChromeOptions()
     options.add_argument('headless')
     options.add_argument('window-size=1920x1080')
     options.add_argument("disable-gpu")
 
     # chromedriver 경로 설정
-    driver = webdriver.Chrome('/usr/local/bin/chromedriver', options=options)
+    driver = webdriver.Chrome(driver_path, options=options)
     driver.implicitly_wait(3)
 
-    section = {"정치" : 100, "경제":101, "사회":102,"생활/문화":103,"세계":104,"IT/과학":105}
+    section = {"정치": 100, "경제": 101, "사회": 102, "생활/문화": 103, "세계": 104, "IT/과학": 105}
     for key in section.keys():
         # chrome으로 네이버 뉴스 접속
         driver.get("http://news.naver.com/main/ranking/popularDay.nhn?rankingType=popular_day&sectionId=" + str(
@@ -33,9 +35,9 @@ def crowling(writer):
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
         notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
-        for i in range(100):
-            for i in range(30):
-                try :
+        for _ in range(100):
+            for _ in range(30):
+                try:
                     driver.find_element_by_link_text(notices[i].text).click()
                     time.sleep(2)
                     html = driver.page_source
@@ -54,7 +56,7 @@ def crowling(writer):
                     content = output.replace("본문 내용TV플레이어", '')
                     title = clean_text(title)
                     content = clean_text(content)
-                    writer.writerow({"title":title,"content":content})
+                    writer.writerow({"title": title, "content": content})
                     driver.back()
                     time.sleep(2)
                 except:
@@ -70,18 +72,19 @@ def crowling(writer):
             soup = BeautifulSoup(html, 'html.parser')
             notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
 
-#파일 쓰기
+
+# 파일 쓰기
 def csv_writer():
     if os.path.exists('./data/navernews_data.csv'):
         with open('./data/navernews_data.csv', 'a', encoding='utf-8',newline='') as csvfile:
             fieldnames = ['title', 'content']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            crowling(writer)
+            crawling(writer)
     else:
         with open('./data/navernews_data.csv', 'w', encoding='utf-8', newline='') as csvfile:
             fieldnames = ['title', 'content']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
-            crowling(writer)
+            crawling(writer)
 
 csv_writer()
