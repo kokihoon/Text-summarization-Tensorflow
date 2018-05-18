@@ -7,6 +7,7 @@ import os
 
 driver_path = 'D://Download//chromedriver_win32//chromedriver'
 
+
 # 클리닝 함수
 def clean_text(text):
     cleaned_text = re.sub('[a-zA-Z]', '', text)
@@ -35,7 +36,7 @@ def crawling(writer):
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
         notices = soup.select('li > div.ranking_text > div.ranking_headline > a')
-        for i in range(100):
+        for _ in range(1000):
             for i in range(30):
                 try:
                     driver.find_element_by_link_text(notices[i].text).click()
