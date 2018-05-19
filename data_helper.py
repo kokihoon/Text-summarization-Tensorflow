@@ -89,6 +89,9 @@ class SentencePreProcessing(PreProcessing):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type : str)
         """
+        for i in range(len(sentence)):
+            if hanja.is_hanja(sentence[i]):
+                return hanja.translate(sentence, 'substitution')
         return sentence
 
     @staticmethod
@@ -119,5 +122,5 @@ def make_dictionary():
 if __name__ == '__main__':
     # Test Code
     test = SentencePreProcessing()
-    t = test.convert('北 이르면 열흘후 풍계리 핵실험장 폭파…생중계 안할듯')
+    t = test.convert('靑 北풍계리 폐기 최소한 미래엔 핵개발 않겠다는 의미종합')
     print(t)
