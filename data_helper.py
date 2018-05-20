@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import hanja
+import konlpy
 import csv
 
 
@@ -16,38 +17,51 @@ class PreProcessing(object):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type: str)
         """
+        result = sentence
         for func in self._convert_func_list:
-            sentence = func(sentence)
-        return sentence
+            result = func(result)
+        return result
 
 
 class SentenceToTokenizer(PreProcessing):
     """
     한글로 된 문장을 적절히 토큰나이즈 해주는 기능들을 모아놓은 클래스
     """
-    def __init__(self):
+    def __init__(self,
+                 remove_tag_list=None,
+                 norm=False,
+                 stem=False):
+        """
+
+        한글로 된 문장을 적절히 토큰나이즈 해주는 기능을 제공
+
+        :param remove_tag_list: 제거한 Pos Tag list (type: list)
+        :param norm: 단어를 정규화
+            ex) 입니닼ㅋㅋ -> 입니다 ㅋㅋ, 샤릉해 -> 사랑해
+
+        :param stem: 어근화를 실시
+            ex) 한국어를 처리하는 예시입니다 ㅋㅋ -> 한국어, 를, 처리, 하다, 예시, 이다, ㅋㅋ
+            (하는 -> 하다, 입니다 -> 이다)
+        """
         super(SentenceToTokenizer, self).__init__()
+        if not remove_tag_list:
+            self._remove_tag_list = list()
+        else:
+            self._remove_tag_list = remove_tag_list
+        self._norm = norm
+        self._stem = stem
+        self._tokenizer = konlpy.tag.Twitter()
+        self._convert_func_list.append(self.sentence_tokenizer)
 
-    @staticmethod
-    def remove_unnecessary_tags(words, remove_tag_list):
-        # TODO : 불필요한 테그 리스트들을 입력받아 해당하는 태그를 가진 단어들을 제거하는 기능 구현
-        # TODO : remove_unnecessary_tags 기능에 대한 상세한 설명 추가
+    def sentence_tokenizer(self, sentence):
         """
-        :param words:
-        :param remove_tag_list:
+        :param self:
+        :param sentence:
         :return:
         """
-        pass
-
-    @staticmethod
-    def normalization_words(words):
-        # TODO : 단어를 표준화하는 기능 구현
-        # TODO : normalization_words 기능에 대한 상세한 설명 추가
-        """
-        :param words:
-        :return:
-        """
-        pass
+        tokens = self._tokenizer.pos(sentence, norm=self._norm, stem=self._stem)
+        tokens = [token[0] for token in tokens if token not in self._remove_tag_list]
+        return tokens
 
 
 class SentencePreProcessing(PreProcessing):
@@ -78,7 +92,6 @@ class SentencePreProcessing(PreProcessing):
 
     @staticmethod
     def convert_hanja_to_hangul(sentence):
-        # TODO : 문장에 있는 한자를 한글로 변환기켜주는 기능 구현
         """
         문장안에 한자가 포함되어 있으면 한글로 변화시켜주는 기능
 
@@ -89,6 +102,7 @@ class SentencePreProcessing(PreProcessing):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type : str)
         """
+        sentence = hanja.translate(sentence, 'substitution')
         return sentence
 
     @staticmethod
@@ -118,6 +132,8 @@ def make_dictionary():
 
 if __name__ == '__main__':
     # Test Code
-    test = SentencePreProcessing()
+    test = SentenceToTokenizer()
+    t = test.convert('北 이르면 열흘후 풍계리 핵실험장 폭파…생중계 안할듯')
+    print(t)
     t = test.convert('北 이르면 열흘후 풍계리 핵실험장 폭파…생중계 안할듯')
     print(t)
