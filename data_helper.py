@@ -203,7 +203,6 @@ def make_dictionary(
                 content = converter(row['content'])
                 words = words.union(set(title))
                 words = words.union(set(content))
-                break
 
     vocab = list(MASK_INFO.keys())      # 단어장에 '_UNK_', '_PAD_', '_GO_', '_END_' 추가
     words = list(words)
@@ -234,10 +233,13 @@ def make_dictionary(
 
 def load_dictionary(
         save_point):
-    # TODO: load_dictionary 주석 작성
     """
-    :param save_point:
-    :return:
+    make_dictionary 로 추가된 단어장/사전을 불러오는 기능
+
+    :param save_point: 단어장/사전이 저장된 디렉토리 위치 (type: str)
+    :return: word2idx, idx2word
+        word2idx:
+        idx2word:
     """
 
     # 파일이름
@@ -254,7 +256,7 @@ def load_dictionary(
         raise FileExistsError
 
     # 사전 파일 불러우기
-    word2idx_dict = pickle.load(open(word2idx_path, 'rb'))
-    idx2word_dict = pickle.load(open(idx2word_path, 'rb'))
+    word2idx = pickle.load(open(word2idx_path, 'rb'))
+    idx2word = pickle.load(open(idx2word_path, 'rb'))
 
-    return word2idx_dict, idx2word_dict
+    return word2idx, idx2word
