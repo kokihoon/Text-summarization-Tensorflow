@@ -2,6 +2,9 @@
 import hanja
 import konlpy
 import csv
+import time
+import pickle
+import os
 
 
 class PreProcessing(object):
@@ -70,7 +73,7 @@ class SentencePreProcessing(PreProcessing):
     """
     def __init__(self,
                  convert_hanja=True,
-                 remove_construction=True):
+                 clearning_sentence=True):
         """
         문장들을 사용자가 정한대로 전처리 하는 기능
 
@@ -87,8 +90,8 @@ class SentencePreProcessing(PreProcessing):
         super(SentencePreProcessing, self).__init__()
         if convert_hanja:
             self._convert_func_list.append(SentencePreProcessing.convert_hanja_to_hangul)
-        if remove_construction:
-            self._convert_func_list.append(SentencePreProcessing.remove_unnecessary_construction)
+        if clearning_sentence:
+            self._convert_func_list.append(SentencePreProcessing.cleaning_sentence)
 
     @staticmethod
     def convert_hanja_to_hangul(sentence):
@@ -106,7 +109,7 @@ class SentencePreProcessing(PreProcessing):
         return sentence
 
     @staticmethod
-    def remove_unnecessary_construction(sentence):
+    def cleaning_sentence(sentence):
         # TODO : 문장에 있는 쓸모없는 구문 제거 기능 구현
         """
         문장안에 쓸모없는 구문들과 문자들을 제거하는 기능
@@ -122,18 +125,136 @@ class SentencePreProcessing(PreProcessing):
         """
         return sentence
 
+'======================================================================================================================'
+'======================================================================================================================'
+'======================================================================================================================'
 
-def make_dictionary():
+
+_UNK_ = '_UNK_'     # 알수없는 단어를 표시하기 위한 mask (단어장에 존재 하지 않는 단어)
+_PAD_ = '_PAD_'     # 길이를 맞춰주기 위한 mask
+_GO_ = '_GO_'       # 문장의 시작을 알려주기위한 mask
+_END_ = '_END_'     # 문장의 끝을 알려구기위한 mask
+unk_id = 0          # _UNK_ number id
+pad_id = 1          # _PAD_ number id
+go_id = 2           # _GO_  number id
+end_id = 3          # _EMD_ number id
+MASK_INFO = {
+    _UNK_: unk_id,
+    _PAD_: pad_id,
+    _GO_: go_id,
+    _END_: end_id
+}
+
+
+def make_dictionary(
+        file_path_list,
+        save_point,
+        pre_process_inst,
+        tokenizer_inst):
     """
-    학습과 테스트를 위한 단어 리스트들 저장
+    학습/테스트에 필요한 단어 리스트, word2idx 사전, idx2word 사전를 만들어주는 기능
+
+    1. vocab : ['단어1', '단어2', ...]
+    2. word2idx : {'단어1' : 번호1, '단어2' : 번호2}          \
+    3. idx2word : {번호1 : '단어1', 번호2 : '단어2'}
+
+    :param file_path_list: 데이터셋 path 리스트 (type: list)
+    :param save_point: 결과물을 저장할 디렉토리 위치 (type: str)
+    :param pre_process_inst: 데이터셋의 문장을 전처리하기 위한 SentencePreProcessing 인스턴스  (type: SentencePreProcessing)
+    :param tokenizer_inst: 문장을 적절히 토큰화 하기 위한 SentenceToTokenizer 인스턴스   (type: SentenceToTokenizer)
+    :return: vocabulary_path, word2idx_path, idx2word_path
+        vocabulary_path : 단어장 저장 위치
+        word2idx_path : word2idx 저장 위치
+        idx2word_path : idx2word 저장 위치
+    """
+
+    def converter(sentence):
+        sentence = pre_process_inst.convert(sentence)
+        tokens = tokenizer_inst.convert(sentence)
+        return tokens
+
+    start_time = time.time()
+
+    # 결과물들을 저장할 파일 생성
+    if not os.path.exists(save_point):
+        abs_save_path = os.path.abspath(save_point)
+        os.makedirs(abs_save_path)
+    if not os.path.exists(os.path.join(save_point, 'dict')):
+        abs_save_path = os.path.abspath(os.path.join(save_point, 'dict'))
+        os.makedirs(abs_save_path)
+
+    # 파일이름
+    vocabulary_path = os.path.join(save_point, 'vocabulary.txt')
+    word2idx_path = os.path.join(save_point, 'dict', 'word2idx.dic')
+    idx2word_path = os.path.join(save_point, 'dict', 'idx2word.dic')
+
+    # 파일 포인트
+    vocabulary_fp = open(vocabulary_path, 'w', encoding='utf-8')
+    word2idx_fp = open(word2idx_path, 'wb')
+    idx2word_fp = open(idx2word_path, 'wb')
+
+    # 단어 리스트 생성
+    words = set()
+    for file_path in file_path_list:
+        with open(file_path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                title = converter(row['title'])
+                content = converter(row['content'])
+                words = words.union(set(title))
+                words = words.union(set(content))
+                break
+
+    vocab = list(MASK_INFO.keys())      # 단어장에 '_UNK_', '_PAD_', '_GO_', '_END_' 추가
+    words = list(words)
+    words.sort()                        # 네이버 뉴스 단어 리스트 정렬
+    vocab.extend(words)                 # 단어장에 네어버 뉴스 단어 리스트 추가
+
+    print('단어 리스트 완성...')
+
+    word2idx = dict()
+    idx2word = dict()
+    for i, word in enumerate(vocab):
+        vocabulary_fp.write(str(word) + '\n')    # vocabulary.txt 에 단어 리스트 저장
+        idx2word[i] = word
+        word2idx[word] = i
+    pickle.dump(word2idx, word2idx_fp)          # word2idx.dic 에 딕셔너리 저장
+    pickle.dump(idx2word, idx2word_fp)          # idx2word.dic 에 딕셔너리 저장
+
+    vocabulary_fp.close()
+    word2idx_fp.close()
+    idx2word_fp.close()
+
+    end_time = time.time()
+    diff_time = round(end_time - start_time, 3)
+
+    print('단어장/사전 저장 완료... 총 걸린 시간 : {} sec, 총 단어 갯수 : {}'.format(diff_time, len(words)))
+    return vocabulary_path, word2idx_path, idx2word_path
+
+
+def load_dictionary(
+        save_point):
+    # TODO: load_dictionary 주석 작성
+    """
+    :param save_point:
     :return:
     """
-    pass
 
-if __name__ == '__main__':
-    # Test Code
-    test = SentenceToTokenizer()
-    t = test.convert('北 이르면 열흘후 풍계리 핵실험장 폭파…생중계 안할듯')
-    print(t)
-    t = test.convert('北 이르면 열흘후 풍계리 핵실험장 폭파…생중계 안할듯')
-    print(t)
+    # 파일이름
+    vocabulary_path = os.path.join(save_point, 'vocabulary.txt')
+    word2idx_path = os.path.join(save_point, 'dict', 'word2idx.dic')
+    idx2word_path = os.path.join(save_point, 'dict', 'idx2word.dic')
+
+    # 단어장/사전 파일이 존재하는지 확인
+    if not os.path.exists(vocabulary_path):
+        raise FileExistsError
+    if not os.path.exists(word2idx_path):
+        raise FileExistsError
+    if not os.path.exists(idx2word_path):
+        raise FileExistsError
+
+    # 사전 파일 불러우기
+    word2idx_dict = pickle.load(open(word2idx_path, 'rb'))
+    idx2word_dict = pickle.load(open(idx2word_path, 'rb'))
+
+    return word2idx_dict, idx2word_dict
