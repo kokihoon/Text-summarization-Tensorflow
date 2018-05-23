@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+import collections
 import hanja
 import konlpy
 import csv
@@ -125,6 +126,18 @@ class SentencePreProcessing(PreProcessing):
         """
         return sentence
 
+
+class SentenceConverter(object):
+    def __init__(self,
+                 pre_processor,
+                 tokenizer):
+        self.__pre_processor = pre_processor
+        self.__tokenizer = tokenizer
+
+    def get_convert_func(self):
+        return lambda sentence: self.__tokenizer.convert(self.__pre_processor.convert(sentence))
+
+
 '======================================================================================================================'
 '======================================================================================================================'
 '======================================================================================================================'
@@ -149,8 +162,8 @@ MASK_INFO = {
 def make_dictionary(
         file_path_list,
         save_point,
-        pre_process_inst,
-        tokenizer_inst):
+        sentence_converter_func,
+        word_max_count):
     """
     학습/테스트에 필요한 단어 리스트, word2idx 사전, idx2word 사전를 만들어주는 기능
 
@@ -160,18 +173,12 @@ def make_dictionary(
 
     :param file_path_list: 데이터셋 path 리스트 (type: list)
     :param save_point: 결과물을 저장할 디렉토리 위치 (type: str)
-    :param pre_process_inst: 데이터셋의 문장을 전처리하기 위한 SentencePreProcessing 인스턴스  (type: SentencePreProcessing)
-    :param tokenizer_inst: 문장을 적절히 토큰화 하기 위한 SentenceToTokenizer 인스턴스   (type: SentenceToTokenizer)
+    :param sentence_converter_func: 데이터셋의 문장을 전처리하기 위한 lambda function  (type: func)
     :return: vocabulary_path, word2idx_path, idx2word_path
         vocabulary_path : 단어장 저장 위치
         word2idx_path : word2idx 저장 위치
         idx2word_path : idx2word 저장 위치
     """
-
-    def converter(sentence):
-        sentence = pre_process_inst.convert(sentence)
-        tokens = tokenizer_inst.convert(sentence)
-        return tokens
 
     start_time = time.time()
 
@@ -199,15 +206,21 @@ def make_dictionary(
         with open(file_path, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                title = converter(row['title'])
-                content = converter(row['content'])
+                title = sentence_converter_func(row['title'])
+                content = sentence_converter_func(row['content'])
                 words = words.union(set(title))
                 words = words.union(set(content))
 
     vocab = list(MASK_INFO.keys())      # 단어장에 '_UNK_', '_PAD_', '_GO_', '_END_' 추가
     words = list(words)
     words.sort()                        # 네이버 뉴스 단어 리스트 정렬
-    vocab.extend(words)                 # 단어장에 네어버 뉴스 단어 리스트 추가
+
+    # 단어의 출현횟수가 word_max_count 보다 많으면 단어목록에서 삭제
+    counter = collections.Counter(words)
+    words = [word for word, num in counter.items() if num < word_max_count]
+
+    # 단어장에서 네이버 뉴스 단어 리스트 추가
+    vocab.extend(words)
 
     print('단어 리스트 완성...')
 
@@ -230,33 +243,137 @@ def make_dictionary(
     print('단어장/사전 저장 완료... 총 걸린 시간 : {} sec, 총 단어 갯수 : {}'.format(diff_time, len(words)))
     return vocabulary_path, word2idx_path, idx2word_path
 
+'======================================================================================================================'
+'======================================================================================================================'
+'======================================================================================================================'
 
-def load_dictionary(
-        save_point):
-    """
-    make_dictionary 로 추가된 단어장/사전을 불러오는 기능
 
-    :param save_point: 단어장/사전이 저장된 디렉토리 위치 (type: str)
-    :return: word2idx, idx2word
-        word2idx:
-        idx2word:
-    """
+class ParentBachIter(object):
+    def __init__(self,
+                 data_paths,
+                 epochs,
+                 batch_size,
+                 word2idx_path,
+                 idx2word_path,
+                 sentence_converter_func):
+        self.data_paths = data_paths
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.word2idx_path = word2idx_path
+        self.idx2word_path = idx2word_path
+        self.sentence_converter_func = sentence_converter_func
+        self.word2idx, self.idx2word = self._load_dictionary()
 
-    # 파일이름
-    vocabulary_path = os.path.join(save_point, 'vocabulary.txt')
-    word2idx_path = os.path.join(save_point, 'dict', 'word2idx.dic')
-    idx2word_path = os.path.join(save_point, 'dict', 'idx2word.dic')
+    def _load_dictionary(self):
+        """
+        word2idx.dic, idx2word.dic 사전 데이터 불러오는 기능
+        :return: word2idx.dic, idx2word.dic
+        """
 
-    # 단어장/사전 파일이 존재하는지 확인
-    if not os.path.exists(vocabulary_path):
-        raise FileExistsError
-    if not os.path.exists(word2idx_path):
-        raise FileExistsError
-    if not os.path.exists(idx2word_path):
-        raise FileExistsError
+        # word2idx.dic, idx2word.dic 파일이 존재하는지 확인
+        if not os.path.exists(self.word2idx_path) or not os.path.exists(self.idx2word_path):
+            raise FileExistsError
 
-    # 사전 파일 불러우기
-    word2idx = pickle.load(open(word2idx_path, 'rb'))
-    idx2word = pickle.load(open(idx2word_path, 'rb'))
+        # 사전 파일 로드
+        word2idx = pickle.load(open(self.word2idx_path, 'rb'))
+        idx2word = pickle.load(open(self.idx2word_path, 'rb'))
+        return word2idx, idx2word
 
-    return word2idx, idx2word
+    def _get_data_set(self):
+        for data_path in self.data_paths:
+            print(data_path)
+        pass
+
+    def next_batches(self):
+        pass
+
+
+class Word2VecModelBatchIter(ParentBachIter):
+    def __init__(self,
+                 data_paths,
+                 epochs,
+                 batch_size,
+                 window_size,
+                 word2idx_path,
+                 idx2word_path,
+                 sentence_converter_func):
+        super(Word2VecModelBatchIter, self).__init__(
+            data_paths=data_paths,
+            epochs=epochs,
+            batch_size=batch_size,
+            word2idx_path=word2idx_path,
+            idx2word_path=idx2word_path,
+            sentence_converter_func=sentence_converter_func
+        )
+        self.window_size = window_size
+
+
+class SummaryModelBatchIter(ParentBachIter):
+    def __init__(self,
+                 data_paths,
+                 epochs,
+                 batch_size,
+                 word2idx_path,
+                 idx2word_path,
+                 sentence_converter_func):
+        super(SummaryModelBatchIter, self).__init__(
+            data_paths=data_paths,
+            epochs=epochs,
+            batch_size=batch_size,
+            word2idx_path=word2idx_path,
+            idx2word_path=idx2word_path,
+            sentence_converter_func=sentence_converter_func
+        )
+
+    def next_batches(self):
+        pass
+
+
+if __name__ == '__main__':
+    pre_processor_inst = SentencePreProcessing(
+        convert_hanja=True,
+        clearning_sentence=True
+    )
+    tokenizer = SentenceToTokenizer(
+        norm=True,
+        stem=True
+    )
+    converter_func = SentenceConverter(
+        tokenizer=tokenizer,
+        pre_processor=pre_processor_inst
+    ).get_convert_func()
+
+    make_dictionary(
+        file_path_list=['./data/navernews_data.csv'],
+        save_point='./data/words',
+        sentence_converter_func=converter_func,
+        word_max_count=20
+    )
+
+    SummaryModelBatchIter(
+        data_paths=['./data/navernews_data.csv'],
+        epochs=1,
+        batch_size=10,
+        window_size=2,
+        word2idx_path='./data/words/dict/word2idx.dic',
+        idx2word_path='./data/words/dict/idx2word.dic',
+        sentence_converter_func=converter_func
+    )
+    #
+    # def test():
+    #     n = 0
+    #     while n < 3:
+    #         n += 1
+    #         yield n
+    #
+    # t = test()
+    # while True:
+    #     try:
+    #         print(next(t))
+    #     except StopIteration:
+    #         print('end')
+    #         break
+
+
+
+
