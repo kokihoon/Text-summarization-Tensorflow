@@ -124,6 +124,10 @@ class SentencePreProcessing(PreProcessing):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type : str)
         """
+        if "기자" in sentence:
+            sentence = sentence.split("기자")[-1]
+        if "ⓒ" in sentence:
+            sentence = sentence.split('ⓒ')[0]
         return sentence
 
 
