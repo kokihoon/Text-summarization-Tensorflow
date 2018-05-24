@@ -89,10 +89,7 @@ class SentencePreProcessing(PreProcessing):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type : str)
         """
-        for i in range(len(sentence)):
-            if hanja.is_hanja(sentence[i]):
-                return hanja.translate(sentence, 'substitution')
-        return sentence
+        return hanja.translate(sentence, 'substitution')
 
     @staticmethod
     def remove_unnecessary_construction(sentence):
@@ -109,6 +106,11 @@ class SentencePreProcessing(PreProcessing):
         :param sentence: 문장 (type: str)
         :return: 변환된 문장 (type : str)
         """
+        if "기자" in sentence :
+            sentence = sentence.split("기자")[-1]
+        if "ⓒ" in sentence :
+            sentence = sentence.split('ⓒ')[0]
+
         return sentence
 
 
@@ -122,5 +124,5 @@ def make_dictionary():
 if __name__ == '__main__':
     # Test Code
     test = SentencePreProcessing()
-    t = test.convert('靑 北풍계리 폐기 최소한 미래엔 핵개발 않겠다는 의미종합')
+    t = test.convert('서울뉴스1 조소영 기자박승주 기자 청와대는 북한이 오는 23일부터 ...')
     print(t)
